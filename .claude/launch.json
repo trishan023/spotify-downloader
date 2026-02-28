@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "spotify-downloader",
+      "runtimeExecutable": "/Users/trishantalukdar/Library/Caches/pypoetry/virtualenvs/spotify-downloader-2sr9lg06-py3.11/bin/python",
+      "runtimeArgs": ["app.py"],
+      "port": 8080
+    }
+  ]
+}

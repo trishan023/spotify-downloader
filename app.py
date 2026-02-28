@@ -86,29 +86,66 @@ def run_download(job_id: str, url: str, output_dir: str) -> None:
         total = len(songs)
         names = ", ".join(s.name for s in songs)
         pushlog(f"Found {total} track(s): {names}")
-        push("progress", {
+        track_list = [
+            {"name": s.name, "artist": getattr(s, "artist", "") or ""}
+            for s in songs
+        ]
+        push("tracks", {
             "status": "downloading",
             "progress": 25,
             "message": f"Found {total} track(s). Starting download...",
+            "tracks": track_list,
         })
 
         pushlog(f"Downloading to {output_dir}...")
         downloader = Downloader({"output": output_dir, "simple_tui": True, "threads": 1})
-        results = downloader.download_multiple_songs(songs)
 
-        # results is List[Tuple[Song, Optional[Path]]]
-        downloaded = [(song, path) for song, path in results if path is not None]
-        failed     = [(song, path) for song, path in results if path is None]
+        downloaded = []
+        failed = []
+
+        for i, song in enumerate(songs):
+            push("track_start", {
+                "index": i,
+                "name": song.name,
+                "progress": round(25 + 75 * i / total),
+            })
+            try:
+                results = downloader.download_multiple_songs([song])
+                song_obj, path = results[0]
+                if path is not None:
+                    downloaded.append((song_obj, path))
+                    push("track_done", {
+                        "index": i,
+                        "name": song.name,
+                        "success": True,
+                        "progress": round(25 + 75 * (i + 1) / total),
+                    })
+                else:
+                    failed.append((song_obj, None))
+                    push("track_done", {
+                        "index": i,
+                        "name": song.name,
+                        "success": False,
+                        "progress": round(25 + 75 * (i + 1) / total),
+                    })
+            except Exception as exc:
+                failed.append((song, None))
+                pushlog(f"Failed to download '{song.name}': {exc}", "error")
+                push("track_done", {
+                    "index": i,
+                    "name": song.name,
+                    "success": False,
+                    "progress": round(25 + 75 * (i + 1) / total),
+                })
 
         pushlog(f"Done — {len(downloaded)} downloaded, {len(failed)} failed",
                 "done" if downloaded else "warn")
 
         if downloaded:
-            names = ", ".join(song.name for song, _ in downloaded)
             push("done", {
                 "status": "done",
                 "progress": 100,
-                "message": f"Done! Downloaded {len(downloaded)} track(s) to {output_dir}",
+                "message": f"Downloaded {len(downloaded)} of {total} track(s)",
                 "output": output_dir,
             })
         else:

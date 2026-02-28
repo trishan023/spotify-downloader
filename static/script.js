@@ -9,16 +9,20 @@
   const progressSection = document.getElementById('progress-section');
   const progressBar     = document.getElementById('progress-bar');
   const statusText      = document.getElementById('status-text');
-  const logBox          = document.getElementById('log-box');
+  const trackCounter    = document.getElementById('track-counter');
+  const trackQueue      = document.getElementById('track-queue');
 
   const historySection = document.getElementById('history-section');
   const historyList    = document.getElementById('history-list');
 
-  let activeSource = null; // current EventSource
+  let activeSource   = null;
+  let totalTracks    = 0;
+  let completedTracks = 0;
+  let failedTracks   = 0;
 
   function setProgress(pct, msg) {
     progressBar.style.width = `${pct}%`;
-    statusText.textContent  = msg || '';
+    if (msg !== null) statusText.textContent = msg || '';
   }
 
   function setLoading(loading) {
@@ -26,13 +30,43 @@
     btnText.textContent  = loading ? 'Downloading…' : 'Download';
   }
 
-  function appendLog(msg, level = 'info') {
-    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const line = document.createElement('div');
-    line.className = `log-line ${level}`;
-    line.textContent = `[${now}] ${msg}`;
-    logBox.appendChild(line);
-    logBox.scrollTop = logBox.scrollHeight;
+  function updateCounter() {
+    if (!totalTracks) { trackCounter.textContent = ''; return; }
+    const done = completedTracks + failedTracks;
+    trackCounter.textContent = `${done} / ${totalTracks}`;
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderQueue(tracks) {
+    trackQueue.innerHTML = '';
+    trackQueue.classList.remove('hidden');
+    tracks.forEach((t, i) => {
+      const li = document.createElement('li');
+      li.className = 'track-item';
+      li.dataset.index = i;
+      li.dataset.state = 'pending';
+      li.style.setProperty('--i', i);
+      li.innerHTML = `
+        <span class="track-dot"></span>
+        <span class="track-info">
+          <span class="track-name">${escapeHtml(t.name)}</span>
+          ${t.artist ? `<span class="track-artist">${escapeHtml(t.artist)}</span>` : ''}
+        </span>
+      `;
+      trackQueue.appendChild(li);
+    });
+  }
+
+  function setTrackState(index, state) {
+    const item = trackQueue.querySelector(`[data-index="${index}"]`);
+    if (item) item.dataset.state = state;
   }
 
   function addHistoryItem(status, message, outputPath) {
@@ -41,7 +75,7 @@
     li.className = 'history-item';
     li.innerHTML = `
       <span class="badge ${status}">${status === 'done' ? '✓ Done' : '✗ Failed'}</span>
-      <span class="path" title="${outputPath || message}">${outputPath || message}</span>
+      <span class="path" title="${escapeHtml(outputPath || message)}">${escapeHtml(outputPath || message)}</span>
     `;
     historyList.prepend(li);
   }
@@ -51,7 +85,7 @@
     browseBtn.disabled = true;
     try {
       const res = await fetch('/pick-folder');
-      if (res.status === 204) return; // user cancelled
+      if (res.status === 204) return;
       const data = await res.json();
       if (data.path) outputInput.value = data.path;
     } finally {
@@ -68,14 +102,20 @@
 
     if (!url) return;
 
-    // Close any existing SSE connection
     if (activeSource) {
       activeSource.close();
       activeSource = null;
     }
 
+    // Reset state
+    totalTracks = 0;
+    completedTracks = 0;
+    failedTracks = 0;
+    trackQueue.innerHTML = '';
+    trackQueue.classList.add('hidden');
+    trackCounter.textContent = '';
+
     setLoading(true);
-    logBox.innerHTML = '';
     progressSection.classList.remove('hidden');
     setProgress(0, 'Sending request…');
 
@@ -87,9 +127,7 @@
         body:    JSON.stringify({ url, output }),
       });
       const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'Server error');
-      }
+      if (!res.ok || data.error) throw new Error(data.error || 'Server error');
       jobId = data.job_id;
     } catch (err) {
       setProgress(0, `Error: ${err.message}`);
@@ -98,27 +136,49 @@
       return;
     }
 
-    // Open SSE stream
     const sse = new EventSource(`/progress/${jobId}`);
     activeSource = sse;
 
-    function handleEvent(e) {
+    function handleProgress(e) {
       const d = JSON.parse(e.data);
       setProgress(d.progress ?? 0, d.message ?? '');
     }
 
-    sse.addEventListener('progress',    handleEvent);
-    sse.addEventListener('searching',   handleEvent);
-    sse.addEventListener('downloading', handleEvent);
+    sse.addEventListener('progress',    handleProgress);
+    sse.addEventListener('searching',   handleProgress);
+    sse.addEventListener('downloading', handleProgress);
 
-    sse.addEventListener('log', (e) => {
+    sse.addEventListener('tracks', (e) => {
       const d = JSON.parse(e.data);
-      appendLog(d.msg, d.level || 'info');
+      totalTracks = d.tracks.length;
+      completedTracks = 0;
+      failedTracks = 0;
+      setProgress(d.progress ?? 25, d.message ?? '');
+      updateCounter();
+      renderQueue(d.tracks);
+    });
+
+    sse.addEventListener('track_start', (e) => {
+      const d = JSON.parse(e.data);
+      setProgress(d.progress ?? 0, null);
+      setTrackState(d.index, 'active');
+    });
+
+    sse.addEventListener('track_done', (e) => {
+      const d = JSON.parse(e.data);
+      if (d.success) completedTracks++;
+      else failedTracks++;
+      setProgress(d.progress ?? 0, null);
+      setTrackState(d.index, d.success ? 'done' : 'failed');
+      updateCounter();
     });
 
     sse.addEventListener('done', (e) => {
       const d = JSON.parse(e.data);
-      setProgress(100, d.message || 'Done!');
+      const msg = failedTracks > 0
+        ? `${completedTracks} downloaded, ${failedTracks} failed`
+        : `Downloaded ${completedTracks} track${completedTracks !== 1 ? 's' : ''}`;
+      setProgress(100, msg);
       setLoading(false);
       addHistoryItem('done', d.message, d.output);
       sse.close();
@@ -135,10 +195,8 @@
       activeSource = null;
     });
 
-    // Network-level SSE error (connection dropped)
     sse.onerror = () => {
-      if (sse.readyState === EventSource.CLOSED) return; // already closed normally
-      // Fall back to polling
+      if (sse.readyState === EventSource.CLOSED) return;
       sse.close();
       activeSource = null;
       pollStatus(jobId);

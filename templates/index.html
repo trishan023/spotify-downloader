@@ -49,11 +49,14 @@
 
     <!-- Progress section (hidden until a job starts) -->
     <div id="progress-section" class="hidden">
+      <div class="progress-header">
+        <span id="status-text" class="status-text">Starting...</span>
+        <span id="track-counter" class="track-counter"></span>
+      </div>
       <div class="progress-bar-wrap">
         <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
       </div>
-      <p id="status-text" class="status-text">Starting...</p>
-      <div id="log-box" class="log-box"></div>
+      <ul id="track-queue" class="track-queue hidden"></ul>
     </div>
 
     <!-- History list -->
