@@ -31,12 +31,15 @@
 
       <div class="field">
         <label for="output-input">Output folder</label>
-        <input
-          id="output-input"
-          type="text"
-          placeholder="~/Music"
-          value="~/Music"
-        />
+        <div class="input-row">
+          <input
+            id="output-input"
+            type="text"
+            placeholder="~/Music"
+            value="~/Music"
+          />
+          <button type="button" id="browse-btn" title="Open Finder to select folder">Browse</button>
+        </div>
       </div>
 
       <button id="download-btn" type="submit">

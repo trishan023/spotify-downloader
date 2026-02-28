@@ -3,6 +3,7 @@
   const urlInput     = document.getElementById('url-input');
   const outputInput  = document.getElementById('output-input');
   const downloadBtn  = document.getElementById('download-btn');
+  const browseBtn    = document.getElementById('browse-btn');
   const btnText      = downloadBtn.querySelector('.btn-text');
 
   const progressSection = document.getElementById('progress-section');
@@ -44,6 +45,20 @@
     `;
     historyList.prepend(li);
   }
+
+  browseBtn.addEventListener('click', async () => {
+    browseBtn.textContent = '...';
+    browseBtn.disabled = true;
+    try {
+      const res = await fetch('/pick-folder');
+      if (res.status === 204) return; // user cancelled
+      const data = await res.json();
+      if (data.path) outputInput.value = data.path;
+    } finally {
+      browseBtn.textContent = 'Browse';
+      browseBtn.disabled = false;
+    }
+  });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

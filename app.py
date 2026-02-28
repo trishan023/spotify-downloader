@@ -39,6 +39,7 @@ def get_spotdl() -> Spotdl:
                 _spotdl = Spotdl(
                     client_id=client_id,
                     client_secret=client_secret,
+                    downloader_settings={"threads": 1, "simple_tui": True},
                 )
                 log.info("Spotify client ready.")
     return _spotdl
@@ -92,7 +93,7 @@ def run_download(job_id: str, url: str, output_dir: str) -> None:
         })
 
         pushlog(f"Downloading to {output_dir}...")
-        downloader = Downloader({"output": output_dir, "simple_tui": True})
+        downloader = Downloader({"output": output_dir, "simple_tui": True, "threads": 1})
         results = downloader.download_multiple_songs(songs)
 
         # results is List[Tuple[Song, Optional[Path]]]
@@ -125,6 +126,20 @@ def run_download(job_id: str, url: str, output_dir: str) -> None:
 
     finally:
         q.put(None)  # sentinel — tells the SSE generator to close
+
+
+@app.route("/pick-folder")
+def pick_folder():
+    """Open a native macOS folder picker and return the selected path."""
+    import subprocess
+    result = subprocess.run(
+        ["osascript", "-e", 'POSIX path of (choose folder with prompt "Select download folder:")'],
+        capture_output=True, text=True,
+    )
+    path = result.stdout.strip()
+    if not path:
+        return jsonify({"error": "No folder selected"}), 204
+    return jsonify({"path": path.rstrip("/")})
 
 
 @app.route("/")
