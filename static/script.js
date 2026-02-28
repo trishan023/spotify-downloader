@@ -8,6 +8,7 @@
   const progressSection = document.getElementById('progress-section');
   const progressBar     = document.getElementById('progress-bar');
   const statusText      = document.getElementById('status-text');
+  const logBox          = document.getElementById('log-box');
 
   const historySection = document.getElementById('history-section');
   const historyList    = document.getElementById('history-list');
@@ -22,6 +23,15 @@
   function setLoading(loading) {
     downloadBtn.disabled = loading;
     btnText.textContent  = loading ? 'Downloading…' : 'Download';
+  }
+
+  function appendLog(msg, level = 'info') {
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const line = document.createElement('div');
+    line.className = `log-line ${level}`;
+    line.textContent = `[${now}] ${msg}`;
+    logBox.appendChild(line);
+    logBox.scrollTop = logBox.scrollHeight;
   }
 
   function addHistoryItem(status, message, outputPath) {
@@ -50,6 +60,7 @@
     }
 
     setLoading(true);
+    logBox.innerHTML = '';
     progressSection.classList.remove('hidden');
     setProgress(0, 'Sending request…');
 
@@ -84,6 +95,11 @@
     sse.addEventListener('progress',    handleEvent);
     sse.addEventListener('searching',   handleEvent);
     sse.addEventListener('downloading', handleEvent);
+
+    sse.addEventListener('log', (e) => {
+      const d = JSON.parse(e.data);
+      appendLog(d.msg, d.level || 'info');
+    });
 
     sse.addEventListener('done', (e) => {
       const d = JSON.parse(e.data);

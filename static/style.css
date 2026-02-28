@@ -149,6 +149,31 @@ button#download-btn:disabled {
   min-height: 1.2em;
 }
 
+/* ── Log box ── */
+.log-box {
+  background: #0a0a0a;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: "SF Mono", "Fira Code", "Menlo", monospace;
+  font-size: 0.75rem;
+  color: #aaa;
+  padding: 10px 12px;
+  margin-top: 12px;
+  max-height: 140px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.log-box:empty { display: none; }
+
+.log-line { line-height: 1.5; }
+.log-line.info  { color: #aaa; }
+.log-line.warn  { color: #e0a040; }
+.log-line.error { color: #e05555; }
+.log-line.done  { color: var(--green); }
+
 /* ── History ── */
 #history-section {
   margin-top: 36px;

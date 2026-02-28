@@ -1,13 +1,47 @@
 import json
+import logging
 import os
 import queue
 import threading
 import uuid
 from pathlib import Path
 
+from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, render_template, request
+from spotdl import Downloader, Spotdl
+from spotdl.utils.config import SPOTIFY_OPTIONS
+
+load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] %(levelname)s %(message)s",
+    datefmt="%H:%M:%S",
+)
+log = logging.getLogger("spotify-dl")
 
 app = Flask(__name__)
+
+# Lazy singleton — initialized on first download request
+_spotdl: Spotdl | None = None
+_spotdl_lock = threading.Lock()
+
+
+def get_spotdl() -> Spotdl:
+    global _spotdl
+    if _spotdl is None:
+        with _spotdl_lock:
+            if _spotdl is None:
+                log.info("Initializing Spotify client...")
+                client_id = os.getenv("SPOTIFY_CLIENT_ID", SPOTIFY_OPTIONS["client_id"])
+                client_secret = os.getenv("SPOTIFY_CLIENT_SECRET", SPOTIFY_OPTIONS["client_secret"])
+                log.info("Using client_id: %s...", client_id[:8])
+                _spotdl = Spotdl(
+                    client_id=client_id,
+                    client_secret=client_secret,
+                )
+                log.info("Spotify client ready.")
+    return _spotdl
 
 # In-memory job store: job_id -> {"status": str, "progress": int, "message": str, "output": str}
 jobs: dict[str, dict] = {}
@@ -23,38 +57,53 @@ def run_download(job_id: str, url: str, output_dir: str) -> None:
         q.put({"event": event, "data": data})
         jobs[job_id].update(data)
 
-    try:
-        push("progress", {"status": "starting", "progress": 5, "message": "Initializing spotDL..."})
+    def pushlog(msg: str, level: str = "info") -> None:
+        log.info("[%s] %s", job_id[:8], msg)
+        q.put({"event": "log", "data": {"level": level, "msg": msg}})
 
-        from spotdl import Spotdl
-        from spotdl.utils.config import SPOTDL_CONFIG
+    try:
+        log.info("[%s] Job started — URL: %s", job_id[:8], url)
+        pushlog("Job started")
+        push("progress", {"status": "starting", "progress": 5, "message": "Initializing spotDL..."})
 
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
+        pushlog("Initializing Spotify client...")
+        spotdl = get_spotdl()
+        pushlog("Spotify client ready")
+
+        pushlog(f"Searching Spotify for: {url}")
         push("progress", {"status": "searching", "progress": 15, "message": "Searching for tracks..."})
 
-        spotdl_instance = Spotdl(
-            client_id=SPOTDL_CONFIG["client_id"],
-            client_secret=SPOTDL_CONFIG["client_secret"],
-            downloader_settings={"output": output_dir},
-        )
-
-        songs = spotdl_instance.search([url])
+        songs = spotdl.search([url])
         if not songs:
+            pushlog("No tracks found for this URL", "warn")
             push("error", {"status": "error", "progress": 0, "message": "No tracks found for the given URL."})
             q.put(None)  # sentinel
             return
 
         total = len(songs)
+        names = ", ".join(s.name for s in songs)
+        pushlog(f"Found {total} track(s): {names}")
         push("progress", {
             "status": "downloading",
             "progress": 25,
             "message": f"Found {total} track(s). Starting download...",
         })
 
-        downloaded, failed = spotdl_instance.download_songs(songs)
+        pushlog(f"Downloading to {output_dir}...")
+        downloader = Downloader({"output": output_dir, "simple_tui": True})
+        results = downloader.download_multiple_songs(songs)
+
+        # results is List[Tuple[Song, Optional[Path]]]
+        downloaded = [(song, path) for song, path in results if path is not None]
+        failed     = [(song, path) for song, path in results if path is None]
+
+        pushlog(f"Done — {len(downloaded)} downloaded, {len(failed)} failed",
+                "done" if downloaded else "warn")
 
         if downloaded:
+            names = ", ".join(song.name for song, _ in downloaded)
             push("done", {
                 "status": "done",
                 "progress": 100,
@@ -69,7 +118,9 @@ def run_download(job_id: str, url: str, output_dir: str) -> None:
             })
 
     except Exception as exc:
+        log.exception("[%s] Unhandled error: %s", job_id[:8], exc)
         jobs[job_id].update({"status": "error", "progress": 0, "message": str(exc)})
+        job_queues[job_id].put({"event": "log",   "data": {"level": "error", "msg": str(exc)}})
         job_queues[job_id].put({"event": "error", "data": {"status": "error", "message": str(exc)}})
 
     finally:
@@ -131,4 +182,4 @@ def status(job_id: str):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000, threaded=True)
+    app.run(debug=True, port=8080, threaded=True)
