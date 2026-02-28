@@ -6,11 +6,15 @@
   const browseBtn    = document.getElementById('browse-btn');
   const btnText      = downloadBtn.querySelector('.btn-text');
 
-  const progressSection = document.getElementById('progress-section');
-  const progressBar     = document.getElementById('progress-bar');
-  const statusText      = document.getElementById('status-text');
-  const trackCounter    = document.getElementById('track-counter');
-  const trackQueue      = document.getElementById('track-queue');
+  const progressSection    = document.getElementById('progress-section');
+  const progressBar        = document.getElementById('progress-bar');
+  const statusText         = document.getElementById('status-text');
+  const trackCounter       = document.getElementById('track-counter');
+  const trackQueue         = document.getElementById('track-queue');
+  const collectionInfo     = document.getElementById('collection-info');
+  const collectionBadge    = document.getElementById('collection-type-badge');
+  const collectionNameText = document.getElementById('collection-name-text');
+  const collectionFolder   = document.getElementById('collection-folder');
 
   const historySection = document.getElementById('history-section');
   const historyList    = document.getElementById('history-list');
@@ -114,6 +118,7 @@
     trackQueue.innerHTML = '';
     trackQueue.classList.add('hidden');
     trackCounter.textContent = '';
+    collectionInfo.classList.add('hidden');
 
     setLoading(true);
     progressSection.classList.remove('hidden');
@@ -156,6 +161,16 @@
       setProgress(d.progress ?? 25, d.message ?? '');
       updateCounter();
       renderQueue(d.tracks);
+
+      if (d.collection_type && d.collection_name) {
+        collectionBadge.textContent = d.collection_type.charAt(0).toUpperCase() + d.collection_type.slice(1);
+        collectionBadge.className = `collection-badge ${d.collection_type}`;
+        collectionNameText.textContent = d.collection_name;
+        collectionFolder.textContent = d.output || '';
+        collectionInfo.classList.remove('hidden');
+      } else {
+        collectionInfo.classList.add('hidden');
+      }
     });
 
     sse.addEventListener('track_start', (e) => {

@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import queue
+import re
 import threading
 import uuid
 from pathlib import Path
@@ -43,6 +44,26 @@ def get_spotdl() -> Spotdl:
                 )
                 log.info("Spotify client ready.")
     return _spotdl
+
+def detect_url_type(url: str) -> str:
+    """Returns 'album', 'playlist', 'artist', 'track', or 'unknown'."""
+    if re.search(r'open\.spotify\.com/album/', url):
+        return 'album'
+    if re.search(r'open\.spotify\.com/playlist/', url):
+        return 'playlist'
+    if re.search(r'open\.spotify\.com/artist/', url):
+        return 'artist'
+    if re.search(r'open\.spotify\.com/track/', url):
+        return 'track'
+    return 'unknown'
+
+
+def sanitize_folder_name(name: str) -> str:
+    """Strip characters not allowed in folder names on macOS/Linux/Windows."""
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '', name)
+    name = name.strip('. ')
+    return name or 'Download'
+
 
 # In-memory job store: job_id -> {"status": str, "progress": int, "message": str, "output": str}
 jobs: dict[str, dict] = {}
@@ -86,6 +107,28 @@ def run_download(job_id: str, url: str, output_dir: str) -> None:
         total = len(songs)
         names = ", ".join(s.name for s in songs)
         pushlog(f"Found {total} track(s): {names}")
+
+        # Auto-create a named subfolder for albums, playlists, and artists
+        url_type = detect_url_type(url)
+        collection_name: str | None = None
+        if url_type in ('album', 'playlist', 'artist') and songs:
+            s0 = songs[0]
+            if url_type == 'album':
+                collection_name = (
+                    getattr(s0, 'album_name', None)
+                    or getattr(s0, 'list_name', None)
+                )
+            else:
+                collection_name = (
+                    getattr(s0, 'list_name', None)
+                    or getattr(s0, 'album_name', None)
+                )
+            if collection_name:
+                safe_name = sanitize_folder_name(collection_name)
+                output_dir = str(Path(output_dir) / safe_name)
+                Path(output_dir).mkdir(parents=True, exist_ok=True)
+                pushlog(f"Auto-created folder: {output_dir}")
+
         track_list = [
             {"name": s.name, "artist": getattr(s, "artist", "") or ""}
             for s in songs
@@ -95,6 +138,9 @@ def run_download(job_id: str, url: str, output_dir: str) -> None:
             "progress": 25,
             "message": f"Found {total} track(s). Starting download...",
             "tracks": track_list,
+            "collection_type": url_type if url_type in ('album', 'playlist', 'artist') else None,
+            "collection_name": collection_name,
+            "output": output_dir,
         })
 
         pushlog(f"Downloading to {output_dir}...")

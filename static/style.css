@@ -189,6 +189,62 @@ button#download-btn:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Collection info banner ── */
+.collection-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  overflow: hidden;
+}
+
+.collection-badge {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 50px;
+  background: #1a3a26;
+  color: var(--green);
+}
+
+.collection-badge.album   { background: #1a2a3a; color: #64b5f6; }
+.collection-badge.playlist { background: #1a3a26; color: var(--green); }
+.collection-badge.artist  { background: #2e1a3a; color: #ce93d8; }
+
+.collection-name {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.collection-arrow {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.collection-folder {
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 2;
+  min-width: 0;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.75rem;
+}
+
 /* ── Track queue ── */
 .track-queue {
   list-style: none;
