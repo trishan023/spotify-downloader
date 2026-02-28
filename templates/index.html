@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spotify Downloader</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="card">
+    <header>
+      <svg class="logo" viewBox="0 0 24 24" fill="#1DB954" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.441 17.308a.75.75 0 01-1.031.249c-2.823-1.726-6.376-2.116-10.562-1.16a.75.75 0 01-.332-1.463c4.582-1.044 8.514-.594 11.676 1.343a.75.75 0 01.249 1.031zm1.451-3.23a.938.938 0 01-1.288.308c-3.23-1.984-8.155-2.56-11.975-1.401a.938.938 0 01-.517-1.801c4.366-1.252 9.788-.645 13.472 1.606a.937.937 0 01.308 1.288zm.124-3.363C15.37 8.53 9.396 8.329 5.9 9.4a1.125 1.125 0 11-.652-2.154c4.041-1.223 10.76-1 14.894 1.618a1.125 1.125 0 01-1.126 1.951z"/>
+      </svg>
+      <h1>Spotify Downloader</h1>
+      <p class="subtitle">Paste a Spotify link and download as MP3</p>
+    </header>
+
+    <form id="download-form">
+      <div class="field">
+        <label for="url-input">Spotify URL</label>
+        <input
+          id="url-input"
+          type="url"
+          placeholder="https://open.spotify.com/track/..."
+          required
+          autocomplete="off"
+          spellcheck="false"
+        />
+      </div>
+
+      <div class="field">
+        <label for="output-input">Output folder</label>
+        <input
+          id="output-input"
+          type="text"
+          placeholder="~/Music"
+          value="~/Music"
+        />
+      </div>
+
+      <button id="download-btn" type="submit">
+        <span class="btn-text">Download</span>
+      </button>
+    </form>
+
+    <!-- Progress section (hidden until a job starts) -->
+    <div id="progress-section" class="hidden">
+      <div class="progress-bar-wrap">
+        <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+      </div>
+      <p id="status-text" class="status-text">Starting...</p>
+    </div>
+
+    <!-- History list -->
+    <section id="history-section" class="hidden">
+      <h2>Download History</h2>
+      <ul id="history-list"></ul>
+    </section>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
