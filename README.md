@@ -10,7 +10,7 @@ No Spotify API credentials required — spotDL uses Spotify's public web API, fi
 
 ## Features
 
-- Paste any Spotify URL (track, album, or playlist)
+- Paste any Spotify URL (track, album, artist, or playlist)
 - Connect your Spotify account to download your **Liked Songs** library
 - Choose your output folder with a native Finder picker
 - Real-time download progress via Server-Sent Events
@@ -33,13 +33,13 @@ brew install ffmpeg
 # Clone and install dependencies
 git clone https://github.com/trishan023/spotify-downloader.git
 cd spotify-downloader
-poetry install
+poetry install --no-root
 
 # Start the server
 poetry run python app.py
 ```
 
-Open http://localhost:5000 in your browser.
+Open http://localhost:8080 in your browser.
 
 ---
 
@@ -47,156 +47,69 @@ Open http://localhost:5000 in your browser.
 
 ### 1 — Default view
 
-When you first open the app you see the main card. Paste any Spotify link and hit **Download** straight away — no account connection needed.
+Paste any Spotify link and hit **Download** — no account needed.
 
-```
-┌──────────────────────────────────────────────┐
-│                                              │
-│                    ●  ●  ●                   │  ← Spotify logo (green)
-│             Spotify Downloader               │
-│       Paste a Spotify link and download      │
-│                  as MP3                      │
-│                                              │
-│  ┌──────────────────────────────────────────┐│
-│  │  ♫  Connect Spotify Account              ││  ← green-tinted outline button
-│  └──────────────────────────────────────────┘│
-│                                              │
-│  Spotify URL                                 │
-│  ┌──────────────────────────────────────────┐│
-│  │  https://open.spotify.com/track/...      ││
-│  └──────────────────────────────────────────┘│
-│                                              │
-│  Output folder                               │
-│  ┌─────────────────────────────┐  ┌────────┐│
-│  │  ~/Music                    │  │ Browse ││
-│  └─────────────────────────────┘  └────────┘│
-│                                              │
-│  ┌──────────────────────────────────────────┐│
-│  │              Download                    ││  ← Spotify green button
-│  └──────────────────────────────────────────┘│
-│                                              │
-└──────────────────────────────────────────────┘
-```
+<img src="docs/screenshots/1-default.png" width="420" alt="Default view" />
 
 **Steps:**
-
 1. Paste a Spotify track, album, artist, or playlist URL into the **Spotify URL** field.
-2. The **Output folder** defaults to `~/Music`. Click **Browse** to pick a different folder with the native macOS Finder dialog.
+2. The **Output folder** defaults to `~/Music`. Click **Browse** to open a native macOS Finder dialog and pick a different folder.
 3. Click **Download**.
 
 ---
 
 ### 2 — Spotify account connected
 
-Click **Connect Spotify Account** to authorise the app via OAuth. Once connected the banner switches to show your account name and a **Download Liked Songs** shortcut.
+Click **Connect Spotify Account** to authorise via OAuth. Once connected, the banner switches to show your account name and a one-click **Download Liked Songs** button.
 
-```
-┌──────────────────────────────────────────────┐
-│                                              │
-│                    ●  ●  ●                   │
-│             Spotify Downloader               │
-│       Paste a Spotify link and download      │
-│                  as MP3                      │
-│                                              │
-│  ┌──────────────────────────────────────────┐│
-│  │  ● Your Name                  Disconnect ││  ← green dot, ghost link
-│  └──────────────────────────────────────────┘│
-│  ┌──────────────────────────────────────────┐│
-│  │  ♥  Download Liked Songs                 ││  ← solid green button
-│  └──────────────────────────────────────────┘│
-│  ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─  │
-│                                              │
-│  Spotify URL                                 │
-│  ┌──────────────────────────────────────────┐│
-│  │  https://open.spotify.com/track/...      ││
-│  └──────────────────────────────────────────┘│
-│  ...                                         │
-└──────────────────────────────────────────────┘
-```
+<img src="docs/screenshots/2-spotify-connected.png" width="420" alt="Spotify account connected" />
 
 - The **green dot** confirms the OAuth session is active.
-- **Download Liked Songs** kicks off a full library download in one click — no URL needed.
-- Click **Disconnect** to revoke the session and return to the default banner.
+- **Download Liked Songs** kicks off a full library download with no URL required.
+- Click **Disconnect** to revoke the session.
 
 ---
 
 ### 3 — Download in progress
 
-Once a download starts, the form locks and a progress section appears below it. A **Cancel** button replaces the download button's text area.
+The progress bar, track counter, and a live per-track queue appear as soon as a job starts. Hit **Cancel** at any time to stop.
 
-```
-┌──────────────────────────────────────────────┐
-│  ...form (disabled during download)...       │
-│                                              │
-│  ┌───────────────────────┐  ┌─────────────┐ │
-│  │       Download        │  │  ✕  Cancel  │ │  ← Cancel is red-outlined
-│  └───────────────────────┘  └─────────────┘ │
-│                                              │
-│  Downloading track 3 of 12        3 / 12     │
-│  ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │  ← green progress bar
-│                                              │
-│  ┌─────────────────────────────────────────┐ │
-│  │  PLAYLIST  Chill Mix  →  ~/Music/Chill  │ │  ← collection info strip
-│  └─────────────────────────────────────────┘ │
-│                                              │
-│  ●  Blinding Lights                          │  ● green pulsing = active
-│     The Weeknd                               │
-│  ●  Levitating                               │  ● solid green = done
-│     Dua Lipa                                 │
-│  ●  Stay                                     │  ● solid green = done
-│     Justin Bieber                            │
-│  ○  Peaches                                  │  ○ dark = pending
-│     Justin Bieber                            │
-│  ○  good 4 u                                 │
-│     Olivia Rodrigo                           │
-│                                              │
-└──────────────────────────────────────────────┘
-```
+<img src="docs/screenshots/3-downloading.png" width="420" alt="Download in progress" />
 
-**Track dot legend:**
+**Track dot colours:**
 
-| Dot colour | Meaning |
-|-----------|---------|
-| Dark grey | Pending — not yet started |
-| Green pulsing | Actively downloading / converting |
+| Colour | Meaning |
+|--------|---------|
+| Dark grey | Pending — not started yet |
+| Green (pulsing) | Actively downloading / converting |
 | Solid green | Done |
-| Red | Failed (hover to see error) |
+| Red | Failed |
 
-The **collection info strip** shows the type badge (TRACK / ALBUM / PLAYLIST / ARTIST), the collection name, and the destination folder.
-
----
-
-### 4 — Outcome banners
-
-When a download finishes one of three banners slides in:
-
-```
-  ✔  12 tracks downloaded successfully         ← green  (all done)
-
-  ✘  Download failed — spotDL error            ← red    (error)
-
-  ⚠  Download cancelled                        ← amber  (user cancelled)
-```
-
-After a success or failure you can paste a new URL and start again immediately.
+The strip below the progress bar shows the collection type (TRACK / ALBUM / PLAYLIST / ARTIST), its name, and the destination folder.
 
 ---
 
-### 5 — Download history
+### 4 — Success
 
-Every completed job (success, error, or cancelled) is appended to a **Download History** list at the bottom of the card for the current session.
+A green banner confirms how many tracks were downloaded.
 
-```
-  DOWNLOAD HISTORY
-  ┌───────────────────────────────────────────┐
-  │  DONE       ~/Music/Chill Mix             │
-  │  DONE       ~/Music/Blinding Lights.mp3   │
-  │  CANCELLED  ~/Music/Top 50                │
-  │  ERROR      ~/Music/My Playlist           │
-  └───────────────────────────────────────────┘
-```
+<img src="docs/screenshots/4-success.png" width="420" alt="Download complete" />
 
-Badges are colour-coded: **green** = done, **red** = error, **amber** = cancelled.
+---
+
+### 5 — Error
+
+If something goes wrong, a red banner shows the reason. Individual failed tracks are highlighted in the queue with an inline error message.
+
+<img src="docs/screenshots/5-error.png" width="420" alt="Download error" />
+
+---
+
+### 6 — Download history
+
+Every completed job is logged at the bottom of the card for the current session, colour-coded by outcome.
+
+<img src="docs/screenshots/6-history.png" width="420" alt="Download history" />
 
 ---
 
@@ -210,6 +123,8 @@ spotify-downloader/
 ├── static/
 │   ├── style.css       # Dark theme, Spotify green accents
 │   └── script.js       # SSE progress handling, OAuth flow
+├── docs/
+│   └── screenshots/    # UI screenshots used in this README
 └── pyproject.toml      # Poetry config
 ```
 
